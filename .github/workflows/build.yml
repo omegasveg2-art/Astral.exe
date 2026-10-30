@@ -1,0 +1,45 @@
+name: build
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: unpack source
+        run: |
+          if ls *.tar.gz >/dev/null 2>&1; then tar xzf $(ls *.tar.gz | head -1); fi
+          if ls *.zip >/dev/null 2>&1; then unzip -o $(ls *.zip | head -1); fi
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: install NDK
+        run: sdkmanager --install "ndk;26.1.10909125"
+
+      - name: build ox_core (arm64)
+        run: |
+          cd ox_esp
+          NDK=$ANDROID_HOME/ndk/26.1.10909125
+          $NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang++ \
+            -std=c++20 -O2 -fPIC -Isrc -o ox_core \
+            src/ox_main.cpp src/ox_game.cpp src/il2cpp.cpp src/mem.cpp src/code.cpp
+
+      - name: build apk
+        run: |
+          cd ox_esp
+          chmod +x build_apk.sh
+          ./build_apk.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ox-esp-apk
+          path: ox_esp/ox_esp.apk
