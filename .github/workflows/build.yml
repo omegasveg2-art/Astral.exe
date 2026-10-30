@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
@@ -20,10 +20,20 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: android-actions/setup-android@v3
-
-      - name: install NDK
-        run: sdkmanager --install "ndk;26.1.10909125"
+      - name: install android sdk cmdline-tools + ndk (manual, setup-android action is broken)
+        run: |
+          SDK=$HOME/android-sdk
+          mkdir -p "$SDK/cmdline-tools"
+          cd "$SDK/cmdline-tools"
+          curl -sSL -o tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -q tools.zip
+          mv cmdline-tools latest
+          rm tools.zip
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "$SDK/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "$SDK/platform-tools" >> "$GITHUB_PATH"
+          yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
+          "$SDK/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-33" "build-tools;33.0.2" "ndk;26.1.10909125"
 
       - name: build ox_core (arm64)
         run: |
